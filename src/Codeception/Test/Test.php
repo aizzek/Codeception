@@ -10,6 +10,7 @@ use Codeception\Events;
 use Codeception\Exception\UselessTestException;
 use Codeception\PHPUnit\Wrapper\Test as TestWrapper;
 use Codeception\ResultAggregator;
+use Codeception\Test\Interfaces\ScenarioDriven;
 use Codeception\TestInterface;
 use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\AssertionFailedError;
@@ -54,8 +55,6 @@ abstract class Test extends TestWrapper implements TestInterface, Interfaces\Des
     private ?ResultAggregator $resultAggregator = null;
 
     private bool $ignored = false;
-
-    private int $assertionCount = 0;
 
     private ?EventDispatcher $eventDispatcher = null;
 
@@ -169,6 +168,17 @@ abstract class Test extends TestWrapper implements TestInterface, Interfaces\Des
                 $this->test();
                 $status = self::STATUS_OK;
                 $eventType = Events::TEST_SUCCESS;
+
+                if (method_exists($this, 'getScenario')) {
+                    foreach ($this->getScenario()?->getSteps() ?? [] as $step) {
+                        if ($step->hasFailed()) {
+                            $lastFailure = $result->popLastFailure();
+                            if ($lastFailure !== null) {
+                                throw $lastFailure->getFail();
+                            }
+                        }
+                    }
+                }
             } catch (UselessTestException $e) {
                 $result->addUseless(new FailEvent($this, $e, $time));
                 $status = self::STATUS_USELESS;
@@ -196,38 +206,52 @@ abstract class Test extends TestWrapper implements TestInterface, Interfaces\Des
             }
 
             $time = $timer->stop()->asSeconds();
-            $this->assertionCount = Assert::getCount();
-            $result->addToAssertionCount($this->assertionCount);
 
-            if ($this->reportUselessTests && $this->assertionCount === 0 && $eventType === Events::TEST_SUCCESS) {
+            $this->callTestEndHooks($status, $time, $e);
+
+            // We need to get the number of performed assertions _after_ calling the test end hooks because the
+            // AssertionCounter needs to set the number of performed assertions first.
+            $result->addToAssertionCount($this->numberOfAssertionsPerformed());
+
+            if (
+                $this->reportUselessTests &&
+                $this->numberOfAssertionsPerformed() === 0 &&
+                !$this->doesNotPerformAssertions() &&
+                $eventType === Events::TEST_SUCCESS
+            ) {
                 $eventType = Events::TEST_USELESS;
                 $e = new UselessTestException('This test did not perform any assertions');
                 $result->addUseless(new FailEvent($this, $e, $time));
             }
 
             if ($eventType === Events::TEST_SUCCESS) {
+                $result->addSuccessful($this);
                 $this->fire($eventType, new TestEvent($this, $time));
             } else {
                 $this->fire($eventType, new FailEvent($this, $e, $time));
             }
-        }
-
-        foreach (array_reverse($this->hooks) as $hook) {
-            if ($hook === 'codeCoverage' && !$this->collectCodeCoverage) {
-                continue;
-            }
-            if (method_exists($this, $hook . 'End')) {
-                $this->{$hook . 'End'}($status, $time, $e);
-            }
+        } else {
+            $this->callTestEndHooks($status, $time, $e);
         }
 
         $this->fire(Events::TEST_AFTER, new TestEvent($this, $time));
         $this->eventDispatcher->dispatch(new TestEvent($this, $time), Events::TEST_END);
-        $result->addSuccessful($this, $time);
+    }
+
+    /**
+     * Return false by default, the Unit-specific TestCaseWrapper implements this properly as it supports the PHPUnit
+     * test override `->expectNotToPerformAssertions()`.
+     */
+    protected function doesNotPerformAssertions(): bool
+    {
+        return false;
     }
 
     public function getResultAggregator(): ResultAggregator
     {
+        if ($this->resultAggregator === null) {
+            throw new \LogicException('ResultAggregator is not set');
+        }
         return $this->resultAggregator;
     }
 
@@ -249,7 +273,7 @@ abstract class Test extends TestWrapper implements TestInterface, Interfaces\Des
 
     public function numberOfAssertionsPerformed(): int
     {
-        return $this->assertionCount;
+        return $this->getNumAssertions();
     }
 
 
@@ -265,5 +289,17 @@ abstract class Test extends TestWrapper implements TestInterface, Interfaces\Des
             }
         }
         $this->eventDispatcher->dispatch($event, $eventType);
+    }
+
+    private function callTestEndHooks(string $status, float $time, ?Throwable $e): void
+    {
+        foreach (array_reverse($this->hooks) as $hook) {
+            if ($hook === 'codeCoverage' && !$this->collectCodeCoverage) {
+                continue;
+            }
+            if (method_exists($this, $hook . 'End')) {
+                $this->{$hook . 'End'}($status, $time, $e);
+            }
+        }
     }
 }

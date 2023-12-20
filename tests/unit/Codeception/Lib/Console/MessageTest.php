@@ -6,6 +6,8 @@ namespace Codeception\Lib\Console;
 
 class MessageTest extends \Codeception\Test\Unit
 {
+    protected \CodeGuy $tester;
+
     public function testCut()
     {
         $message = new Message('very long text');
@@ -16,11 +18,9 @@ class MessageTest extends \Codeception\Test\Unit
     }
 
     //test message cutting
-    // @codingStandardsIgnoreStart
     public function testVeryLongTestNameVeryLongTestNameVeryLongTestNameVeryLongTestNameVeryLongTestNameVeryLongTestNameVeryLongTestName()
     {
         $this->expectNotToPerformAssertions();
-        // @codingStandardsIgnoreEnd
     }
 
     // test multibyte message width

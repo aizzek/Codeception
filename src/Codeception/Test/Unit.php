@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Codeception\Test;
 
+use AllowDynamicProperties;
 use Codeception\Configuration;
 use Codeception\Exception\ModuleException;
 use Codeception\Lib\Di;
@@ -23,6 +24,7 @@ use function method_exists;
 /**
  * Represents tests from PHPUnit compatible format.
  */
+#[AllowDynamicProperties]
 class Unit extends TestCase implements
     Interfaces\Reported,
     Interfaces\Dependent,
@@ -32,7 +34,14 @@ class Unit extends TestCase implements
 
     private ?Metadata $metadata = null;
 
-    private ?ResultAggregator $resultAggregator = null;
+    private ?Scenario $scenario = null;
+
+    public function __clone(): void
+    {
+        if ($this->scenario !== null) {
+            $this->scenario = clone $this->scenario;
+        }
+    }
 
     public function getMetadata(): Metadata
     {
@@ -42,17 +51,19 @@ class Unit extends TestCase implements
         return $this->metadata;
     }
 
-    public function getResultAggregator(): ResultAggregator
+    public function getScenario(): ?Scenario
     {
-        if ($this->resultAggregator === null) {
-            throw new \LogicException('ResultAggregator is not set');
-        }
-        return $this->resultAggregator;
+        return $this->scenario;
     }
 
-    public function setResultAggregator(?ResultAggregator $resultAggregator): void
+    public function setMetadata(?Metadata $metadata): void
     {
-        $this->resultAggregator = $resultAggregator;
+        $this->metadata = $metadata;
+    }
+
+    public function getResultAggregator(): ResultAggregator
+    {
+        throw new \LogicException('This method should not be called, TestCaseWrapper class must be used instead');
     }
 
     protected function _setUp()
@@ -69,12 +80,12 @@ class Unit extends TestCase implements
 
         /** @var Di $di */
         $di = $this->getMetadata()->getService('di');
-        $di->set(new Scenario($this));
-
         // auto-inject $tester property
         if (($this->getMetadata()->getCurrent('actor')) && ($property = lcfirst(Configuration::config()['actor_suffix']))) {
             $this->$property = $di->instantiate($this->getMetadata()->getCurrent('actor'));
         }
+
+        $this->scenario = $di->get(Scenario::class);
 
         // Auto inject into the _inject method
         $di->injectDependencies($this); // injecting dependencies

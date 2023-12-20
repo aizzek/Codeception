@@ -10,6 +10,7 @@ use Codeception\Step\Argument\FormattedOutput;
 use Codeception\Step\Meta as MetaStep;
 use Codeception\Util\Locator;
 use Exception;
+use PHPUnit\Framework\Constraint\Constraint;
 use PHPUnit\Framework\MockObject\MockObject;
 use RuntimeException;
 use Stringable;
@@ -171,8 +172,10 @@ abstract class Step implements Stringable
                 $argument = $argument->getOutput();
             } elseif (method_exists($argument, '__toString')) {
                 $argument = (string)$argument;
-            } elseif ($argument::class == 'Facebook\WebDriver\WebDriverBy') {
+            } elseif ($argument::class === 'Facebook\WebDriver\WebDriverBy') {
                 $argument = Locator::humanReadableString($argument);
+            } elseif ($argument instanceof Constraint) {
+                $argument = $argument->toString();
             } else {
                 $argument = $this->getClassName($argument);
             }
@@ -185,8 +188,24 @@ abstract class Step implements Stringable
     {
         if ($argument instanceof Closure) {
             return Closure::class;
-        } elseif ($argument instanceof MockObject && (property_exists($argument, '__mocked') && $argument->__mocked !== null)) {
-            return $this->formatClassName($argument->__mocked);
+        } elseif ($argument instanceof MockObject) {
+            $parentClass = get_parent_class($argument);
+            $reflection = new \ReflectionClass($argument);
+
+            if ($parentClass !== false) {
+                return $this->formatClassName($parentClass);
+            }
+
+            $interfaces = $reflection->getInterfaceNames();
+            foreach ($interfaces as $interface) {
+                if (str_starts_with($interface, 'PHPUnit\\')) {
+                    continue;
+                }
+                if (str_starts_with($interface, 'Codeception\\')) {
+                    continue;
+                }
+                return $this->formatClassName($interface);
+            }
         }
 
         return $this->formatClassName($argument::class);

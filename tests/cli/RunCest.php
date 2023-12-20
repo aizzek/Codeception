@@ -128,13 +128,13 @@ final class RunCest
         $I->seeInThisFile('<?xml');
         $I->seeInThisFile(
             '<testsuite name="dummy" tests="6" assertions="3" errors="0" failures="0" skipped="0"'
-            . ' useless="0" time='
+            . ' time='
         );
         $I->seeThisFileMatches('/<testsuite name="AnotherCest" file=".*?AnotherCest.php"/');
         $I->seeThisFileMatches('/<testsuite name="AnotherTest" file=".*?AnotherTest.php"/');
         $I->seeThisFileMatches(
             '/<testsuite name="AnotherTest" file=".*?AnotherTest.php" tests="2" assertions="2" errors="0"'
-            . ' failures="0" skipped="0" useless="0" time=/'
+            . ' failures="0" skipped="0" time=/'
         );
         //FileExistsCept file
         $I->seeInThisFile('<testsuite name="FileExists"');
@@ -643,6 +643,31 @@ EOF
         $I->seeInShellOutput('Failures: 2.');
     }
 
+    public function failedTestFollowedByExceptionReportsCorrectStep(CliGuy $I)
+    {
+        $I->executeCommand('run scenario FailureAndExceptionCest', false);
+        $I->seeInShellOutput('1. $I->throwException("test exception")');
+        $I->seeInShellOutput('Step  Assert same 1,2');
+        $I->seeInShellOutput('Failed asserting that 2 is identical to 1.');
+    }
+
+    public function displaysAllFailedConditionalStepsInOneCest(CliGuy $I)
+    {
+        $I->executeCommand('run scenario MultipleConditionalFailsCest --no-ansi', false);
+        $I->seeInShellOutput('x MultipleConditionalFailsCest: Multiple fails 3x[F]');
+        $I->dontSeeInShellOutput('MultipleConditionalFailsCest: Multiple fails 2x[F]');
+        $I->dontSeeInShellOutput('MultipleConditionalFailsCest: Multiple fails [F]');
+        $I->dontSeeInShellOutput('MultipleConditionalFailsCest: Multiple fails[F]');
+        $I->seeInShellOutput('There were 3 failures:');
+        $I->seeInShellOutput('Step  Can see file found "not-a-file"');
+        $I->seeInShellOutput('Step  Can see file found "not-a-dir"');
+        $I->seeInShellOutput('Step  Can see file found "nothing"');
+        $filename = implode(DIRECTORY_SEPARATOR, ['tests', 'scenario','MultipleConditionalFailsCest.php']);
+        $I->seeInShellOutput(' 1. $I->canSeeFileFound("not-a-file") at ' . $filename . ':7');
+        $I->seeInShellOutput(' 7. $I->canSeeFileFound("not-a-dir") at ' . $filename . ':13');
+        $I->seeInShellOutput(' 13. $I->canSeeFileFound("nothing") at ' . $filename . ':19');
+    }
+
     #[Group('shuffle')]
     public function showSeedNumberOnShuffle(CliGuy $I)
     {
@@ -779,6 +804,9 @@ EOF
         $I->seeInShellOutput('Response: ' . $expectedReportAbsFilename);
         $I->seeFileFound('report.html', $expectedRelReportPath);
         $I->seeInThisFile("See <a href='" . $expectedReportFilename . "' target='_blank'>HTML snapshot</a> of a failed page");
+        $I->seeInThisFile('Failed asserting that on page /');
+        $I->seeInThisFile('<td class="scenarioSuccessValue"><strong>0</strong></td>');
+        $I->seeInThisFile('<td class="scenarioSuccessValue"><strong>0</strong></td>');
     }
 
     private function htmlReportRegexCheckProvider(): array

@@ -282,7 +282,7 @@ class Run extends Command
 
         if (!$this->options['silent']) {
             $this->output->writeln(
-                Codecept::versionString() . ' https://helpukrainewin.org'
+                Codecept::versionString() . ' https://stand-with-ukraine.pp.ua'
             );
 
             if ($this->options['seed']) {
@@ -419,10 +419,8 @@ class Run extends Command
 
         if ($this->options['shard']) {
             $this->output->writeln(
-                "[Shard ${userOptions['shard']}] <info>Running subset of tests</info>"
+                "[Shard {$userOptions['shard']}] <info>Running subset of tests</info>"
             );
-            // disable shuffle for sharding
-            $config['settings']['shuffle'] = false;
         }
 
         if (!$this->options['silent'] && $config['settings']['shuffle']) {
@@ -504,7 +502,7 @@ class Run extends Command
 
         if ($this->options['shard']) {
             $this->output->writeln(
-                "[Shard ${userOptions['shard']}] <info>Merge this result with other shards to see the complete report</info>"
+                "[Shard {$userOptions['shard']}] <info>Merge this result with other shards to see the complete report</info>"
             );
         }
 

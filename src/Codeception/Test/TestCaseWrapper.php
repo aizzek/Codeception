@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Codeception\Test;
 
 use Codeception\Exception\UselessTestException;
-use Codeception\ResultAggregator;
+use Codeception\Scenario;
 use Codeception\Test\Interfaces\Dependent;
 use Codeception\Test\Interfaces\Descriptive;
 use Codeception\Test\Interfaces\Reported;
@@ -26,8 +26,6 @@ use ReflectionClass;
 class TestCaseWrapper extends Test implements Reported, Dependent, StrictCoverage, TestInterface, Descriptive
 {
     private Metadata $metadata;
-
-    private ?ResultAggregator $resultAggregator = null;
 
     /**
      * @var array<string, mixed>
@@ -70,6 +68,11 @@ class TestCaseWrapper extends Test implements Reported, Dependent, StrictCoverag
         $metadata->setAfterClassMethods($afterClassMethods);
     }
 
+    public function __clone(): void
+    {
+        $this->testCase = clone $this->testCase;
+    }
+
     public function getTestCase(): TestCase
     {
         return $this->testCase;
@@ -80,19 +83,14 @@ class TestCaseWrapper extends Test implements Reported, Dependent, StrictCoverag
         return $this->metadata;
     }
 
-    public function getResultAggregator(): ResultAggregator
+    public function getScenario(): ?Scenario
     {
-        if ($this->resultAggregator === null) {
-            throw new \LogicException('ResultAggregator is not set');
+        if ($this->testCase instanceof Unit) {
+            return $this->testCase->getScenario();
         }
-        return $this->resultAggregator;
-    }
 
-    public function setResultAggregator(?ResultAggregator $resultAggregator): void
-    {
-        $this->resultAggregator = $resultAggregator;
+        return null;
     }
-
 
     public function fetchDependencies(): array
     {
@@ -149,13 +147,15 @@ class TestCaseWrapper extends Test implements Reported, Dependent, StrictCoverag
         $this->testCase->setDependencyInput($dependencyInput);
         $this->testCase->runBare();
 
+        $this->testCase->addToAssertionCount(Assert::getCount());
+
         if (PHPUnitVersion::series() < 10) {
             self::$testResults[$this->getSignature()] = $this->testCase->getResult();
         } else {
             self::$testResults[$this->getSignature()] = $this->testCase->result();
         }
 
-        $numberOfAssertionsPerformed = Assert::getCount();
+        $numberOfAssertionsPerformed = $this->getNumAssertions();
         if (
             $this->reportUselessTests &&
             $numberOfAssertionsPerformed > 0 &&
@@ -163,11 +163,19 @@ class TestCaseWrapper extends Test implements Reported, Dependent, StrictCoverag
         ) {
             throw new UselessTestException(
                 sprintf(
-                    'This test is annotated with "@doesNotPerformAssertions" but performed %d assertions',
+                    'This test indicates it does not perform assertions but %d assertions were performed',
                     $numberOfAssertionsPerformed
                 )
             );
         }
+    }
+
+    /**
+     * Is the test expected to not perform assertions with `expectNotToPerformAssertions`?
+     */
+    protected function doesNotPerformAssertions(): bool
+    {
+         return $this->testCase->doesNotPerformAssertions();
     }
 
     public function toString(): string
@@ -193,5 +201,21 @@ class TestCaseWrapper extends Test implements Reported, Dependent, StrictCoverag
         }
 
         return $this->testCase->nameWithDataSet();
+    }
+
+    /**
+     * Override this method from the {@see \Codeception\Test\Feature\AssertionCounter} so that we use PHPUnit's
+     * assertion count instead of our own.
+     * This is needed because PHPUnit's {@see TestCase} has a {@see TestCase::addToAssertionCount()} method which is
+     * both internally and externally used to increase the assertion count. Externally it is called from tearDown
+     * methods, for example when using Mockery.
+     */
+    public function getNumAssertions(): int
+    {
+        if (PHPUnitVersion::series() < 10) {
+            return $this->testCase->getNumAssertions();
+        } else {
+            return $this->testCase->numberOfAssertionsPerformed();
+        }
     }
 }

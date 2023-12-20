@@ -72,6 +72,11 @@ class Cest extends Test implements
         $this->parser = new Parser($this->getScenario(), $this->getMetadata());
     }
 
+    public function __clone(): void
+    {
+        $this->scenario = clone $this->scenario;
+    }
+
     public function preload(): void
     {
         $this->scenario->setFeature($this->getSpecFromMethod());
@@ -237,11 +242,13 @@ class Cest extends Test implements
     public function fetchDependencies(): array
     {
         $names = [];
-        foreach ($this->getMetadata()->getDependencies() as $required) {
-            if (!str_contains($required, ':') && method_exists($this->getTestInstance(), $required)) {
-                $required = $this->testClass . ":{$required}";
+        foreach ($this->getMetadata()->getDependencies() as $dependency) {
+            foreach ((array)$dependency as $required) {
+                if (!str_contains($required, ':') && method_exists($this->getTestInstance(), $required)) {
+                    $required = $this->testClass . ":{$required}";
+                }
+                $names[] = $required;
             }
-            $names[] = $required;
         }
         return $names;
     }

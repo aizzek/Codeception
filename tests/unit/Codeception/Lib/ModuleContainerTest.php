@@ -12,9 +12,10 @@ use Codeception\Module\UniversalFramework as UniversalFrameworkModule;
 use Codeception\Stub;
 use Codeception\Test\Unit;
 
-// @codingStandardsIgnoreFile
 class ModuleContainerTest extends Unit
 {
+    protected \CodeGuy $tester;
+
     protected ModuleContainer $moduleContainer;
 
     protected function _setUp()
@@ -167,81 +168,6 @@ class ModuleContainerTest extends Unit
         $this->moduleContainer->validateConflicts();
     }
 
-    public function testConflictsByInterface()
-    {
-        $this->markTestSkipped("This test uses modules that aren't loaded for core tests");
-
-        $this->expectException(\Codeception\Exception\ModuleConflictException::class);
-        $this->moduleContainer->create('Codeception\Lib\ConflictedModule3');
-        $this->moduleContainer->create('Symfony2');
-        $this->moduleContainer->validateConflicts();
-    }
-
-    public function testConflictsByWebInterface()
-    {
-        $this->markTestSkipped("This test uses modules that aren't loaded for core tests");
-
-        $this->expectException(\Codeception\Exception\ModuleConflictException::class);
-        $this->moduleContainer->create('Laravel5');
-        $this->moduleContainer->create('Symfony2');
-        $this->moduleContainer->validateConflicts();
-    }
-
-    public function testConflictsForREST()
-    {
-        $this->markTestSkipped("This test uses modules that aren't loaded for core tests");
-
-        $config = ['modules' =>
-            ['config' => [
-                'REST' => [
-                    'depends' => 'ZF2',
-                    ]
-                ]
-            ]
-        ];
-        $this->moduleContainer = new ModuleContainer(Stub::make(\Codeception\Lib\Di::class), $config);
-        $this->moduleContainer->create('ZF2');
-        $this->moduleContainer->create('REST');
-        $this->moduleContainer->validateConflicts();
-    }
-
-    public function testConflictsOnDependentModules()
-    {
-        $this->markTestSkipped("This test uses modules that aren't loaded for core tests");
-
-        $config = ['modules' =>
-            ['config' => [
-                'WebDriver' => ['url' => 'localhost', 'browser' => 'firefox'],
-                'REST' => [
-                    'depends' => 'PhpBrowser',
-                    ]
-                ]
-            ]
-        ];
-        $this->moduleContainer = new ModuleContainer(Stub::make(\Codeception\Lib\Di::class), $config);
-        $this->moduleContainer->create('WebDriver');
-        $this->moduleContainer->create('REST');
-        $this->moduleContainer->validateConflicts();
-    }
-
-    public function testNoConflictsForPartedModules()
-    {
-        $this->markTestSkipped("This test uses modules that aren't loaded for core tests");
-
-        $config = ['modules' =>
-            ['config' => [
-                'Laravel5' => [
-                    'part' => 'ORM',
-                    ]
-                ]
-            ]
-        ];
-        $this->moduleContainer = new ModuleContainer(Stub::make(\Codeception\Lib\Di::class), $config);
-        $this->moduleContainer->create('Laravel5');
-        $this->moduleContainer->create('Symfony2');
-        $this->moduleContainer->validateConflicts();
-    }
-
     public function testModuleDependenciesFail()
     {
         $this->expectException(\Codeception\Exception\ModuleRequireException::class);
@@ -305,12 +231,13 @@ class ModuleContainerTest extends Unit
         $config = [
             'modules' => [
                 'enabled' => [
-                        ['\Codeception\Lib\PartedModule' => [
-                            'part' => 'one'
-                        ]
-                    ]
+                        [
+                            '\Codeception\Lib\PartedModule' => [
+                                'part' => 'one'
+                            ],
+                        ],
                 ],
-            ]
+            ],
         ];
         $this->moduleContainer = new ModuleContainer(Stub::make(\Codeception\Lib\Di::class), $config);
         $this->moduleContainer->create('\Codeception\Lib\PartedModule');

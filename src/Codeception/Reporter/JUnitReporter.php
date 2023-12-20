@@ -186,10 +186,12 @@ class JUnitReporter implements EventSubscriberInterface
             (string)$this->testSuiteSkipped[$this->testSuiteLevel]
         );
 
-        $this->testSuites[$this->testSuiteLevel]->setAttribute(
-            'useless',
-            (string)$this->testSuiteUseless[$this->testSuiteLevel]
-        );
+        if (!$this->isStrict) {
+            $this->testSuites[$this->testSuiteLevel]->setAttribute(
+                'useless',
+                (string)$this->testSuiteUseless[$this->testSuiteLevel]
+            );
+        }
 
         $this->testSuites[$this->testSuiteLevel]->setAttribute(
             'time',
@@ -245,12 +247,18 @@ class JUnitReporter implements EventSubscriberInterface
 
         if ($test instanceof TestCaseWrapper) {
             $testCase = $test->getTestCase();
-            if ($testCase->hasOutput()) {
-                $testOutput = $testCase->getActualOutputForAssertion();
+            if (version_compare(PHPUnitVersion::series(), '10.3', '>=')) {
+                if (!$testCase->expectsOutput()) {
+                    $testOutput = $testCase->getActualOutputForAssertion();
+                }
+            } else {
+                if (!$testCase->hasExpectationOnOutput()) {
+                    $testOutput = $testCase->getActualOutputForAssertion();
+                }
             }
         }
 
-        if (!empty($testOutput)) {
+        if ($testOutput !== '') {
             $systemOut = $this->document->createElement(
                 'system-out',
                 Xml::prepareString($testOutput)
