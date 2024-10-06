@@ -417,9 +417,6 @@ EOF
         );
     }
 
-    /**
-     * @param CliGuy $I
-     */
     public function runTestWithFailedScenario(CliGuy $I, $scenario)
     {
         if (!extension_loaded('xdebug')) {
@@ -666,6 +663,16 @@ EOF
         $I->seeInShellOutput(' 1. $I->canSeeFileFound("not-a-file") at ' . $filename . ':7');
         $I->seeInShellOutput(' 7. $I->canSeeFileFound("not-a-dir") at ' . $filename . ':13');
         $I->seeInShellOutput(' 13. $I->canSeeFileFound("nothing") at ' . $filename . ':19');
+    }
+
+    public function scenarioFailuresDontShowForIncorrectTest(CliGuy $I)
+    {
+        $I->executeCommand('run scenario ExpectedFailureTest --no-ansi', false);
+        $I->seeInShellOutput('x ExpectedFailureTest: Expected failure');
+        $I->seeInShellOutput('+ ExpectedFailureTest: Expected exception');
+        $I->seeInShellOutput('There was 1 failure:');
+        $I->seeInShellOutput('1) ExpectedFailureTest: Expected failure');
+        $I->seeInShellOutput('Tests: 2, Assertions: 2, Failures: 1');
     }
 
     #[Group('shuffle')]
@@ -974,16 +981,10 @@ class HtmlReportRegexBuilder
 
 class TestHtmlReportRegexBuilder
 {
-    private string $testClass;
-
-    private string $testCase;
-
     private $stepsRegex;
 
-    public function __construct(string $testClass, string $testCase)
+    public function __construct(private readonly string $testClass, private readonly string $testCase)
     {
-        $this->testClass = $testClass;
-        $this->testCase = $testCase;
     }
 
     public function getTestClass(): string

@@ -1,3 +1,18 @@
+#### 5.1.2
+
+* Prevent unrelated error from being displayed if a scenario step has failed by @craig-mcmahon in #6743
+* Replace Laravel5 with Laravel module in module installation suggestion by @W0rma in #6742
+
+#### 5.1.1
+
+* Reimplemented coverage:exclude option for PHPUnit 11 in #6739
+* Improved output of Bootstrap command  by @ThomasLandauer in #6735
+
+#### 5.1.0
+
+* Support PHPUnit 11
+* Note: PHPUnit 11 does not support excluding files from code coverage report
+
 #### 5.0.13
 
 * Add actor to Cest tests dataProviders by @weeg in #6696
